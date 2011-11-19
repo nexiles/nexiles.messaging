@@ -6,34 +6,72 @@
 
 JsonRpc  = window.JsonRpc
 RabbitMQ = window.RabbitMQ
+JSON     = window.JSON
 
 class window.MessageModel extends Backbone.Model
+    defaults:
+        contents: ""
+        exchange: ""
+        delivery_tag: null
+        timestamp: null
+        routing_key: null
+        redelivered: no
+
+class window.MessagesCollection extends Backbone.Collection
+    model: window.MessageModel
+
     initialize: ->
-        console.log "MessageModel::initialize()"
+        console.log "MessagesCollection::initialize()"
 
-        @broker_url = "http://127.0.0.1:55670/rpc/rabbitmq"
+        @broker_url = "/rpc/rabbitmq"
+        @exchange   = "nexiles.messaging"
+        @queue      = null
 
-        @channel = null
-
-        @channelFactory = new JsonRpc.Service @broker_url, @handle_service_ready,
+        RabbitMQ.openChannel @onChannelOpen,
             debug: true
             debugLogger: @log
-            timeout: 30000
 
-    handle_service_ready: ->
-        logger.debug "MessageModel:handle_service_ready"
-        @log "open"
-        @channel = new RabbitMQ.Channel @channelFactory, @handle_channel_ready,
-            debug: true
-            debugLogger: @log
-            channelTimeout: 5
+    onChannelOpen: (channel) =>
+        console.debug "MessageModel:onChannelOpen: channel=", channel
+        @channel = channel
+        @trigger "messages:open", @channel
+        deferred = channel.exchangeDeclare @exchange, "topic"
+        deferred.addCallback(@onExchangeDeclared)
 
-    handle_channel_ready: ->
-        logger.debug "MessageModel:handle_channel_ready"
-        @log "channel=", @channel
+    onExchangeDeclared: (ex) =>
+        console.log "MessageModel:onExchangeDeclared", ex
+        @trigger "messages:exchange_declared", @exchange
+        deferred = @channel.queueDeclare "", no, no, yes, yes
+        deferred.addCallback(@onQueueDeclared)
+
+    onQueueDeclared: (queue) =>
+        console.log "MessageModel:onQueueDeclared queue_name=", queue
+        @queue = queue
+        @trigger "messages:queue_declared", @queue
+        deferred = @channel.queueBind @queue, @exchange, "*"
+        deferred.addCallback(@onQueueBound)
+
+    onQueueBound: =>
+        console.log "MessageModel:onQueueBound"
+        @trigger "messages:queue_bound", @queue
+        @channel.basicConsume @queue,
+            {deliver: @deliver},
+            {no_ack: true}
+
+    deliver: (delivery) =>
+        console.log "MessageModel:deliver", delivery
+        @add delivery, {at: 0} # add new messages **ON TOP**
+        @trigger "messages:received", delivery
 
 
-    log: (msg) ->
-        console.debug "MessageModel: ", msg
+    log: () ->
+        console.debug "LOG: {{{"
+        _.each(arguments, (item) ->
+            if typeof(item) == 'string'
+                console.debug item
+            else
+                console.debug JSON.stringify item
+        )
+        console.debug "LOG: }}}"
     
 # vim: set ts=4 sw=4 expandtab:

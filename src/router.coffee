@@ -1,11 +1,11 @@
 ######################################################################
-# project - file.coffee
+# nexiles.messaging - router.coffee
 #
 # (c) 2011 nexiles GmbH.
 # All rights reserved.
 
 app = window.app
-MessageModel = window.MessageModel
+MessagesCollection = window.MessagesCollection
 
 class window.MainRouter extends Backbone.Router
 
@@ -23,7 +23,14 @@ class window.MainRouter extends Backbone.Router
         console.log "route home"
         @activate "home"
 
-        app.models.message = new MessageModel()
+        model = app.models.message = new MessagesCollection()
+        model.bind "messages:queue_declared", (queue_name) =>
+            console.log "ROUTER: queue declared:", queue_name
+            #model.bind_and_consume()
+        model.bind "messages:queue_bound", (queue_name) =>
+            console.log "ROUTER: queue bound:", queue_name
+        model.bind "add", (message) =>
+            console.log "ROUTER: message:", message
 
     about: ->
         console.log "route about"
