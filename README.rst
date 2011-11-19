@@ -24,7 +24,9 @@ Goals
 - needs to work across browsers -- even on IE 7
 
 Todo
-=====
+====
+
+List of todos::
 
 [X]  basic message delivery
 [X]  backbone model for message
