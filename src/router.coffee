@@ -4,6 +4,9 @@
 # (c) 2011 nexiles GmbH.
 # All rights reserved.
 
+app = window.app
+MessageModel = window.MessageModel
+
 class window.MainRouter extends Backbone.Router
 
     routes:
@@ -19,6 +22,8 @@ class window.MainRouter extends Backbone.Router
     home: ->
         console.log "route home"
         @activate "home"
+
+        app.models.message = new MessageModel()
 
     about: ->
         console.log "route about"
